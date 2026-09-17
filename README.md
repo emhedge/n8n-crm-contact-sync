@@ -6,6 +6,12 @@ Built as a portfolio project demonstrating change detection, bidirectional data 
 
 ---
 
+## Demo
+
+[![Demo Video](https://img.youtube.com/vi/LksOR9IMEX8/0.jpg)](https://youtu.be/LksOR9IMEX8)
+
+---
+
 ## What it does
 
 1. **Reads** all contacts from the source CRM (Google Sheets)
