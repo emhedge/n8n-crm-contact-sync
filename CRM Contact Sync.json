@@ -1,0 +1,558 @@
+{
+  "name": "CRM Contact Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "e52814e4-ba9e-4878-a67d-33878e543868",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CCdGf9f5PilHpRNXVu80BJWtM_sCrafBCVcuOidmS5k",
+          "mode": "list",
+          "cachedResultName": "CRM Source",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CCdGf9f5PilHpRNXVu80BJWtM_sCrafBCVcuOidmS5k/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CCdGf9f5PilHpRNXVu80BJWtM_sCrafBCVcuOidmS5k/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "07121829-6d01-4deb-85de-adc7ec67dcf6",
+      "name": "Read CRM Source",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "bwHdMRglmJ6zM7BS",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ThDYTPtqaBEZi3WZqvQc5Fj5oo2M8wkxeQTy-yK1_Yg",
+          "mode": "list",
+          "cachedResultName": "CRM Target",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ThDYTPtqaBEZi3WZqvQc5Fj5oo2M8wkxeQTy-yK1_Yg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ThDYTPtqaBEZi3WZqvQc5Fj5oo2M8wkxeQTy-yK1_Yg/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        0
+      ],
+      "id": "64043d22-9d1b-418d-9b64-e36486b913ac",
+      "name": "Read CRM Target",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "bwHdMRglmJ6zM7BS",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const sourceContacts = $('Read CRM Source').all().map(i => i.json);\nconst targetContacts = $('Read CRM Target').all().map(i => i.json);\n\nconst targetIds = targetContacts.map(c => String(c.contact_id));\n\nconst newContacts = [];\nconst updatedContacts = [];\n\nsourceContacts.forEach(contact => {\n  const id = String(contact.contact_id);\n  \n  if (!targetIds.includes(id)) {\n    newContacts.push(contact);\n  } else {\n    const targetContact = targetContacts.find(c => String(c.contact_id) === id);\n    if (targetContact && contact.last_updated !== targetContact.last_updated) {\n      updatedContacts.push({\n        ...contact,\n        row_number: targetContact.row_number\n      });\n    }\n  }\n});\n\nreturn [{ json: { newContacts, updatedContacts } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "adfee822-20e3-4c75-a3cc-30b8aa1f2fd4",
+      "name": "Detect New & Updated Contacts"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.newContacts;\nif (!data || data.length === 0) return [{ json: { skipped: true } }];\nreturn data.map(c => ({ json: c }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        -96
+      ],
+      "id": "08a9da76-d1f3-4f6d-a4b3-9bdbe1e2f857",
+      "name": "Extract New Contacts"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.updatedContacts;\nif (!data || data.length === 0) return [{ json: { skipped: true } }];\nreturn data.map(c => ({ json: c }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        112
+      ],
+      "id": "266098b7-bdef-4f1f-b981-fd0e3d34d896",
+      "name": "Extract Updated Contacts"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ThDYTPtqaBEZi3WZqvQc5Fj5oo2M8wkxeQTy-yK1_Yg",
+          "mode": "list",
+          "cachedResultName": "CRM Target",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ThDYTPtqaBEZi3WZqvQc5Fj5oo2M8wkxeQTy-yK1_Yg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ThDYTPtqaBEZi3WZqvQc5Fj5oo2M8wkxeQTy-yK1_Yg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ $json.contact_id }}",
+            "first_name": "={{ $json.first_name }}",
+            "last_name": "={{ $json.last_name }}",
+            "email": "={{ $json.email }}",
+            "company": "={{ $json.company }}",
+            "status": "={{ $json.status }}",
+            "last_updated": "={{ $json.last_updated }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "first_name",
+              "displayName": "first_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_name",
+              "displayName": "last_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_updated",
+              "displayName": "last_updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1344,
+        -96
+      ],
+      "id": "628c6b60-a182-4326-b3a5-61f9dbe51153",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "bwHdMRglmJ6zM7BS",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1ThDYTPtqaBEZi3WZqvQc5Fj5oo2M8wkxeQTy-yK1_Yg",
+          "mode": "list",
+          "cachedResultName": "CRM Target",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ThDYTPtqaBEZi3WZqvQc5Fj5oo2M8wkxeQTy-yK1_Yg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ThDYTPtqaBEZi3WZqvQc5Fj5oo2M8wkxeQTy-yK1_Yg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ $json.contact_id }}",
+            "first_name": "={{ $json.first_name }}",
+            "last_name": "={{ $json.last_name }}",
+            "email": "={{ $json.email }}",
+            "company": "={{ $json.company }}",
+            "status": "={{ $json.status }}",
+            "last_updated": "={{ $json.last_updated }}"
+          },
+          "matchingColumns": [
+            "contact_id"
+          ],
+          "schema": [
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "first_name",
+              "displayName": "first_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "last_name",
+              "displayName": "last_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "last_updated",
+              "displayName": "last_updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1344,
+        112
+      ],
+      "id": "adf5de5d-d6fa-4dcc-b833-ffc071cf02c6",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "bwHdMRglmJ6zM7BS",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "91b355ea-8f01-43db-8296-0a9a2348e8b4",
+              "leftValue": "={{ $json.skipped }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        -96
+      ],
+      "id": "e1cd2dd3-ec22-4c9e-a02a-f4ea9a6527da",
+      "name": "Has New Contacts?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3d9d136d-0b5d-4e74-87f8-511f8f14f07b",
+              "leftValue": "={{ $json.skipped }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        112
+      ],
+      "id": "ab475f83-a47c-43e6-966f-66405a4b351c",
+      "name": "Has Updated Contacts?"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read CRM Source",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read CRM Source": {
+      "main": [
+        [
+          {
+            "node": "Read CRM Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read CRM Target": {
+      "main": [
+        [
+          {
+            "node": "Detect New & Updated Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect New & Updated Contacts": {
+      "main": [
+        [
+          {
+            "node": "Extract New Contacts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Extract Updated Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract New Contacts": {
+      "main": [
+        [
+          {
+            "node": "Has New Contacts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Updated Contacts": {
+      "main": [
+        [
+          {
+            "node": "Has Updated Contacts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has New Contacts?": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Updated Contacts?": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "fcc48f9f-fbf6-4586-b153-3093782737de",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0d0ebb4ea9c741622f63617446f82ec1a949ee25ecde3a725f2c58d7377bdab9"
+  },
+  "nodeGroups": [],
+  "id": "gw0WCeKZ4eH4EC6T",
+  "tags": []
+}
